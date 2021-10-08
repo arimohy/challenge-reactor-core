@@ -63,6 +63,56 @@ public class CSVUtilTest {
         assert listFilter.block().size() == 322;
     }
 
+    @Test
+    void reactive_filtrarJugadoresMayoresA34(){
+        List<Player> list = CsvUtilFile.getPlayers();
+        Flux<Player> listFlux = Flux.fromStream(list.parallelStream()).cache();
+        Mono<Map<String, Collection<Player>>> listFilter = listFlux
+                .filter(player -> player.age >= 34)
+                .map(player -> {
+                    player.name = player.name.toUpperCase(Locale.ROOT);
+                    return player;
+                })
+                .buffer(100)
+                .flatMap(playerA -> listFlux
+                        .filter(playerB -> playerA.stream()
+                                .anyMatch(a ->  a.club.equals(playerB.club)))
+                )
+                .distinct()
+                .collectMultimap(Player::getClub);
+
+
+        assert listFilter.block().size() == 451;
+    }
+    @Test
+    void reactive_filtrarJugadoresPorNacionalidad(){
+        List<Player> list = CsvUtilFile.getPlayers();
+        Flux<Player> listFlux = Flux.fromStream(list.parallelStream()).cache();
+        Mono<Map<String, Collection<Player>>> listFilter = listFlux
+                .sort((j1,j2)->Integer.compare(j1.winners,j2.winners))
+                .map(player -> {
+                    player.name = player.name.toUpperCase(Locale.ROOT);
+                    return player;
+                })
+                .buffer(100)
+                .flatMap(playerA -> listFlux
+                        .filter(playerB -> playerA.stream()
+                                .anyMatch(a ->  a.national.equals(playerB.national)))
+                )
+                .distinct()
+                .collectMultimap(Player::getNational);
+
+        assert listFilter.block().size() == 164;
+
+        //solo para mostrar el ranking en consola
+        listFilter.block().forEach((n,j)->{
+            System.out.println("Nacionalidad :"+n);
+            j.forEach(jugador->{
+                System.out.println(jugador.name+" "+jugador.winners);
+            });
+        });
+    }
+
 
 
 }
